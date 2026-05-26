@@ -1,4 +1,4 @@
-# AI Reseller Suite
+# AI-powered Vinted Listing Automation Project
 
 Mostly complete AI-powered Vinted listing automation project.
 
