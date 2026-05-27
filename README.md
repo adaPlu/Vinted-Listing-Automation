@@ -1,21 +1,49 @@
-# AI-powered Vinted Listing Automation Project
+# AI Reseller Suite
 
-Mostly complete AI-powered Vinted listing automation project.
+AI-powered resale automation system that creates marketplace-ready Vinted drafts from item photos.
 
 ## Features
-- Chrome CDP automation
-- AI photo enhancement
+- AI listing generation
+- Automatic Vinted draft creation
 - Background removal
-- Listing generation
-- Automatic uploads
-- Human review gate
+- Image enhancement
+- Automatic category selection
+- Automatic pricing adjustments
+- Human review safety gate
+- Chrome CDP automation
+- Processed image pipeline
 
-## Run
+## Tech Stack
+- Python
+- Playwright
+- Pillow
+- OpenCV
+- rembg
+- onnxruntime
 
-```powershell
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-playwright install
-python main.py
-```
+## Automation Pipeline
+
+Photos
+↓
+AI Image Processing
+↓
+Background Removal
+↓
+Image Enhancement
+↓
+Listing Generation
+↓
+Vinted Browser Automation
+↓
+Human Approval
+
+## Portfolio Highlights
+This project demonstrates:
+- Browser automation
+- AI-enhanced image processing
+- Human-in-the-loop automation design
+- Error recovery systems
+- Marketplace workflow automation
+- Python automation engineering
+- Playwright browser control
+- Image processing pipelines

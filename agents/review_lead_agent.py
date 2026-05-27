@@ -1,3 +1,7 @@
+import msvcrt
+import sys
+
+
 class ReviewResult:
 
     def __init__(self, passed=True):
@@ -19,4 +23,23 @@ class ReviewLeadAgent:
         return ReviewResult(True)
 
     def final_human_gate(self):
-        input("Review listing then press ENTER...")
+
+        print("\nReview listing in browser.")
+        print("Press ENTER for next item.")
+        print("Press ESC to exit program.")
+
+        while True:
+
+            key = msvcrt.getch()
+
+            # ENTER
+            if key == b'\r':
+
+                print("Continuing to next item...")
+                break
+
+            # ESC
+            elif key == b'\x1b':
+
+                print("Exiting program...")
+                sys.exit(0)

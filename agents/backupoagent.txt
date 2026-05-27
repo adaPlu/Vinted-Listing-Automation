@@ -1,0 +1,263 @@
+print("=== NEW VINTED_AGENT FILE LOADED ===")
+from playwright.sync_api import sync_playwright
+import subprocess
+import time
+from pathlib import Path
+
+
+class VintedAgent:
+
+    def __init__(self):
+
+        self.cdp_endpoint = "http://127.0.0.1:9222"
+
+        self.browser = None
+        self.context = None
+        self.page = None
+        self._playwright = None
+
+    def __enter__(self):
+
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+
+        # DO NOT close Chrome in CDP mode
+        # Only stop Playwright
+
+        try:
+            if self._playwright:
+                self._playwright.stop()
+        except:
+            pass
+
+    def launch_chrome_debug(self):
+
+        chrome_path = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+        print("Launching Chrome with remote debugging...")
+
+        cmd = [
+            chrome_path,
+            "--remote-debugging-port=9222",
+            "--user-data-dir=D:\\chrome-debug"
+        ]
+
+        print("COMMAND:")
+        print(cmd)
+
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=False
+        )
+
+        print("Chrome launch command executed.")
+
+        # Give Chrome time to fully launch
+        time.sleep(10)
+
+    def connect(self):
+
+        print("Starting Playwright...")
+
+        self._playwright = sync_playwright().start()
+
+        connected = False
+
+        # FIRST ATTEMPT
+        try:
+
+            print("Attempting CDP connection...")
+
+            self.browser = self._playwright.chromium.connect_over_cdp(
+                self.cdp_endpoint
+            )
+
+            connected = True
+
+        except Exception as e:
+
+            print("CDP connection failed.")
+            print("ERROR:")
+            print(e)
+
+            print("Launching Chrome automatically...")
+
+            self.launch_chrome_debug()
+
+        # RETRY LOOP
+        if not connected:
+
+            for attempt in range(10):
+
+                try:
+
+                    print(f"Retrying CDP connection ({attempt + 1}/10)...")
+
+                    self.browser = self._playwright.chromium.connect_over_cdp(
+                        self.cdp_endpoint
+                    )
+
+                    connected = True
+                    break
+
+                except Exception:
+
+                    time.sleep(2)
+
+        if not connected:
+            raise RuntimeError("Failed to connect to Chrome CDP.")
+
+        print("Connected successfully.")
+
+        # Wait for contexts to exist
+        time.sleep(2)
+
+        if not self.browser.contexts:
+            raise RuntimeError("No browser contexts available.")
+
+        self.context = self.browser.contexts[0]
+
+        # Try to find existing Vinted tab
+        self.page = None
+
+        if self.context.pages:
+
+            for p in self.context.pages:
+
+                if "vinted" in p.url.lower():
+                    self.page = p
+                    break
+
+        # Otherwise create new page
+        if self.page is None:
+            self.page = self.context.new_page()
+
+        self.page.bring_to_front()
+
+    def ensure_logged_in(self):
+
+        print("Checking Vinted login state...")
+
+        self.page.goto(
+            "https://www.vinted.com/items/new",
+            wait_until="domcontentloaded"
+        )
+
+        self.page.wait_for_load_state("networkidle")
+
+        self.page.wait_for_timeout(5000)
+
+        current_url = self.page.url.lower()
+
+        print("Current URL:")
+        print(current_url)
+
+        # Only fail if actually redirected to login
+        if "login" in current_url:
+            raise RuntimeError(
+                "Vinted appears to be logged out. "
+                "Log in manually in the CDP Chrome window."
+            )
+
+        print("Login check passed.")
+
+    def open_sell_page(self):
+
+        print("Opening Vinted sell page...")
+
+        self.page.goto(
+            "https://www.vinted.com/items/new",
+            wait_until="domcontentloaded"
+        )
+
+        self.page.wait_for_load_state("networkidle")
+
+        self.page.wait_for_timeout(3000)
+
+        self.page.screenshot(path="debug_sell_page.png")
+
+        print("Sell page opened.")
+
+    def upload_images(self, image_paths):
+
+        print("Uploading images...")
+
+        for img in image_paths:
+            print(img)
+
+        upload_input = self.page.locator('input[type="file"]')
+
+        upload_input.set_input_files(image_paths)
+
+        self.page.wait_for_timeout(8000)
+
+        self.page.screenshot(path="debug_after_upload.png")
+
+        print("Upload command completed.")
+
+    def fill_title(self, title):
+
+        print("Filling title...")
+
+        try:
+
+            title_input = self.page.get_by_label("Title")
+
+            title_input.click()
+
+            title_input.fill(title)
+
+        except Exception:
+
+            print("Label selector failed. Using fallback selector.")
+
+            title_input = self.page.locator('input[type="text"]').first
+
+            title_input.click()
+
+            title_input.fill(title)
+
+        self.page.wait_for_timeout(2000)
+
+        self.page.screenshot(path="debug_after_title.png")
+
+        print("Title filled.")
+
+    def create_listing(self, item_folder):
+
+        print("Creating listing...")
+
+        image_paths = []
+
+        valid_ext = [".jpg", ".jpeg", ".png"]
+
+        for file in Path(item_folder).iterdir():
+
+            if file.suffix.lower() in valid_ext:
+                image_paths.append(str(file.resolve()))
+
+        print("Images found:")
+
+        for img in image_paths:
+            print(img)
+
+        if not image_paths:
+            raise RuntimeError("No valid images found.")
+
+        self.ensure_logged_in()
+
+        self.open_sell_page()
+
+        self.upload_images(image_paths)
+
+        title = Path(item_folder).name.replace("_", " ").title()
+
+        self.fill_title(title)
+
+        print("Listing draft created.")
+
+        input("Review listing in browser then press ENTER...")
